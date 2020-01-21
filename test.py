@@ -25,7 +25,7 @@ def test(cfg,
         verbose = opt.task == 'test'
 
         # Remove previous
-        for f in glob.glob('test_batch*.jpg'):
+        for f in glob.glob('test_batch*.png'):
             os.remove(f)
 
         # Initialize model
@@ -59,7 +59,8 @@ def test(cfg,
         batch_size = min(batch_size, len(dataset))
         dataloader = DataLoader(dataset,
                                 batch_size=batch_size,
-                                num_workers=min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8]),
+                                num_workers=min(
+                                    [os.cpu_count(), batch_size if batch_size > 1 else 0, 8]),
                                 pin_memory=True,
                                 collate_fn=dataset.collate_fn)
 
@@ -76,8 +77,8 @@ def test(cfg,
         _, _, height, width = imgs.shape  # batch size, channels, height, width
 
         # Plot images with bounding boxes
-        if batch_i == 0 and not os.path.exists('test_batch0.jpg'):
-            plot_images(imgs=imgs, targets=targets, paths=paths, fname='test_batch0.jpg')
+        if batch_i == 0 and not os.path.exists('test_batch0.png'):
+            plot_images(imgs=imgs, targets=targets, paths=paths, fname='test_batch0.png')
 
         # Disable gradients
         with torch.no_grad():
@@ -100,7 +101,8 @@ def test(cfg,
 
             if pred is None:
                 if nl:
-                    stats.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
+                    stats.append((torch.zeros(0, niou, dtype=torch.bool),
+                                  torch.Tensor(), torch.Tensor(), tcls))
                 continue
 
             # Append to text file
@@ -115,7 +117,8 @@ def test(cfg,
                 # [{"image_id": 42, "category_id": 18, "bbox": [258.15, 41.29, 348.26, 243.78], "score": 0.236}, ...
                 image_id = int(Path(paths[si]).stem.split('_')[-1])
                 box = pred[:, :4].clone()  # xyxy
-                scale_coords(imgs[si].shape[1:], box, shapes[si][0], shapes[si][1])  # to original shape
+                scale_coords(imgs[si].shape[1:], box, shapes[si][0],
+                             shapes[si][1])  # to original shape
                 box = xyxy2xywh(box)  # xywh
                 box[:, :2] -= box[:, 2:] / 2  # xy center to top-left corner
                 for di, d in enumerate(pred):
@@ -131,7 +134,8 @@ def test(cfg,
                 tcls_tensor = labels[:, 0]
 
                 # target boxes
-                tbox = xywh2xyxy(labels[:, 1:5]) * torch.Tensor([width, height, width, height]).to(device)
+                tbox = xywh2xyxy(labels[:, 1:5]) * \
+                    torch.Tensor([width, height, width, height]).to(device)
 
                 # Per target class
                 for cls in torch.unique(tcls_tensor):
@@ -188,7 +192,8 @@ def test(cfg,
             print('WARNING: missing pycocotools package, can not compute official COCO mAP. See requirements.txt.')
 
         # https://github.com/cocodataset/cocoapi/blob/master/PythonAPI/pycocoEvalDemo.ipynb
-        cocoGt = COCO(glob.glob('../coco/annotations/instances_val*.json')[0])  # initialize COCO ground truth api
+        cocoGt = COCO(glob.glob('../coco/annotations/instances_val*.json')
+                      [0])  # initialize COCO ground truth api
         cocoDt = cocoGt.loadRes('results.json')  # initialize COCO pred api
 
         cocoEval = COCOeval(cocoGt, cocoDt, 'bbox')
@@ -209,17 +214,21 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='test.py')
     parser.add_argument('--cfg', type=str, default='cfg/yolov3-spp.cfg', help='*.cfg path')
     parser.add_argument('--data', type=str, default='data/coco2014.data', help='*.data path')
-    parser.add_argument('--weights', type=str, default='weights/yolov3-spp.weights', help='path to weights file')
+    parser.add_argument('--weights', type=str,
+                        default='weights/yolov3-spp.weights', help='path to weights file')
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
     parser.add_argument('--img-size', type=int, default=416, help='inference size (pixels)')
-    parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
+    parser.add_argument('--conf-thres', type=float, default=0.001,
+                        help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.6, help='IOU threshold for NMS')
-    parser.add_argument('--save-json', action='store_true', help='save a cocoapi-compatible JSON results file')
+    parser.add_argument('--save-json', action='store_true',
+                        help='save a cocoapi-compatible JSON results file')
     parser.add_argument('--task', default='test', help="'test', 'study', 'benchmark'")
     parser.add_argument('--device', default='', help='device id (i.e. 0 or 0,1) or cpu')
     parser.add_argument('--single-cls', action='store_true', help='train as single-class dataset')
     opt = parser.parse_args()
-    opt.save_json = opt.save_json or any([x in opt.data for x in ['coco.data', 'coco2014.data', 'coco2017.data']])
+    opt.save_json = opt.save_json or any(
+        [x in opt.data for x in ['coco.data', 'coco2014.data', 'coco2017.data']])
     print(opt)
 
     if opt.task == 'test':  # task = 'test', 'study', 'benchmark'
@@ -240,7 +249,8 @@ if __name__ == '__main__':
         for i in [320, 416, 512, 608]:
             for j in [0.5, 0.7]:
                 t = time.time()
-                r = test(opt.cfg, opt.data, opt.weights, opt.batch_size, i, opt.conf_thres, j, opt.save_json)[0]
+                r = test(opt.cfg, opt.data, opt.weights, opt.batch_size,
+                         i, opt.conf_thres, j, opt.save_json)[0]
                 y.append(r + (time.time() - t,))
         np.savetxt('benchmark.txt', y, fmt='%10.4g')  # y = np.loadtxt('study.txt')
 
@@ -250,7 +260,8 @@ if __name__ == '__main__':
         x = np.arange(0.4, 0.9, 0.05)
         for i in x:
             t = time.time()
-            r = test(opt.cfg, opt.data, opt.weights, opt.batch_size, opt.img_size, opt.conf_thres, i, opt.save_json)[0]
+            r = test(opt.cfg, opt.data, opt.weights, opt.batch_size,
+                     opt.img_size, opt.conf_thres, i, opt.save_json)[0]
             y.append(r + (time.time() - t,))
         np.savetxt('study.txt', y, fmt='%10.4g')  # y = np.loadtxt('study.txt')
 
@@ -267,4 +278,4 @@ if __name__ == '__main__':
             ax[i].legend()
             ax[i].set_xlabel('iou_thr')
         fig.tight_layout()
-        plt.savefig('study.jpg', dpi=200)
+        plt.savefig('study.png', dpi=200)
